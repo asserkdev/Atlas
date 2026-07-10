@@ -58,12 +58,24 @@ function SetupRequiredPage() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, authError } = useAuth()
   
   if (loading) {
     return (
       <div className="auth-container">
         <div className="loading-spinner" />
+      </div>
+    )
+  }
+  
+  if (authError) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <h2>Connection Error</h2>
+          <p className="error-message">{authError}</p>
+          <p>Please check your Supabase configuration.</p>
+        </div>
       </div>
     )
   }
@@ -76,12 +88,24 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 function PublicRoute({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth()
+  const { user, loading, authError } = useAuth()
   
   if (loading) {
     return (
       <div className="auth-container">
         <div className="loading-spinner" />
+      </div>
+    )
+  }
+  
+  if (authError) {
+    return (
+      <div className="auth-container">
+        <div className="auth-card">
+          <h2>Connection Error</h2>
+          <p className="error-message">{authError}</p>
+          <p>Please check your Supabase configuration.</p>
+        </div>
       </div>
     )
   }

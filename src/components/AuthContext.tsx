@@ -1,11 +1,12 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase, isConfigured } from '../lib/supabase'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  authError: string | null
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>
@@ -19,11 +20,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [authError, setAuthError] = useState<string | null>(null)
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    if (!isConfigured) {
+      setLoading(false)
+      return
+    }
+
+    // Timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      setLoading(false)
+    }, 10000)
+
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      clearTimeout(timeout)
+      if (error) {
+        console.error('Auth session error:', error)
+        setAuthError(error.message)
+      }
       setSession(session)
       setUser(session?.user ?? null)
+      setLoading(false)
+    }).catch((err) => {
+      clearTimeout(timeout)
+      console.error('Auth error:', err)
+      setAuthError(err.message)
       setLoading(false)
     })
 
@@ -35,7 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     )
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const signUp = async (email: string, password: string) => {
@@ -81,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         session,
         loading,
+        authError,
         signUp,
         signIn,
         signInWithMagicLink,
