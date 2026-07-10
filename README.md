@@ -39,6 +39,8 @@ npm run dev
 
 The app will be available at `http://localhost:5173`
 
+**Note:** The app requires Supabase credentials. Make sure to set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` before running.
+
 ### 4. Deploy
 
 The app is designed to deploy to any static hosting service.
