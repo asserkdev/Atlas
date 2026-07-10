@@ -41,15 +41,30 @@ The app will be available at `http://localhost:5173`
 
 ### 4. Deploy
 
-The app is designed to deploy to any static hosting service:
+The app is designed to deploy to any static hosting service.
+
+#### Option A: Vercel (Recommended)
+
+1. Install Vercel CLI: `npm i -g vercel`
+2. Login: `vercel login`
+3. Deploy: `vercel --prod`
+
+Or connect your GitHub repository to Vercel for automatic deployments.
+
+Required environment variables in Vercel:
+- `VITE_SUPABASE_URL` - Your Supabase project URL
+- `VITE_SUPABASE_ANON_KEY` - Your Supabase anon key
+
+#### Option B: GitHub Pages
+
+1. Build the project: `npm run build`
+2. Deploy the `dist` folder to GitHub Pages
+
+#### Option C: Any Static Host
 
 ```bash
 npm run build
-```
-
-For Vercel:
-```bash
-npx vercel
+# Deploy the dist folder to your hosting provider
 ```
 
 ## Features
