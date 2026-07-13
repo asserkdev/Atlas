@@ -7,7 +7,7 @@ import DashboardPage from './pages/DashboardPage'
 import NoteEditorPage from './pages/NoteEditorPage'
 
 // Debug flag - shows simple page first to diagnose issues
-const DEBUG_MODE = true
+const DEBUG_MODE = false
 
 function DebugPage() {
   const supabaseUrl = (import.meta as any).env?.VITE_SUPABASE_URL
