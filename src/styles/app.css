@@ -158,6 +158,58 @@
   z-index: 50;
 }
 
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100%;
+  flex: 1;
+}
+
+/* Notes Sidebar - left sidebar within main content */
+.notes-sidebar {
+  width: 240px;
+  border-right: 1px solid var(--color-border-subtle);
+  padding: var(--space-4);
+  overflow-y: auto;
+  flex-shrink: 0;
+  background: var(--color-bg-secondary);
+}
+
+/* Notes Grid */
+.notes-grid {
+  flex: 1;
+  padding: var(--space-6);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Mobile Menu Toggle */
+.mobile-menu-toggle {
+  display: none;
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .mobile-menu-toggle {
+    display: flex;
+  }
+  
+  .notes-sidebar {
+    display: none;
+  }
+  
+  .notes-grid {
+    padding: var(--space-4);
+  }
+}
+
 .main-header-title {
   font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);

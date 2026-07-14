@@ -1,21 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../components/AuthContext'
 import { useToast } from '../components/ToastContext'
+import { AppLayout } from '../components/AppLayout'
 import { Task } from '../lib/types'
 
 type FilterType = 'all' | 'today' | 'upcoming' | 'completed'
 type PriorityType = 'low' | 'medium' | 'high'
 
 export default function TasksPage() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const { showToast } = useToast()
 
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState<FilterType>('all')
+  const [filter, _setFilter] = useState<FilterType>('all')
   const [showNewTaskModal, setShowNewTaskModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [newTask, setNewTask] = useState({
@@ -184,153 +183,43 @@ export default function TasksPage() {
     return new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
-  const todayCount = tasks.filter(t => t.due_date === new Date().toISOString().split('T')[0] && !t.completed).length
-  const upcomingCount = tasks.filter(t => {
-    const today = new Date().toISOString().split('T')[0]
-    return t.due_date && t.due_date > today && !t.completed
-  }).length
-  const completedCount = tasks.filter(t => t.completed).length
-  const pendingCount = tasks.filter(t => !t.completed).length
-
   return (
-    <div className="app">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <h1 className="sidebar-logo">CAMBRIC</h1>
-          <p className="sidebar-tagline">Atlas</p>
+    <AppLayout>
+      <header className="main-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+          <h1 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}>
+            {filter === 'today' ? '📅 Today\'s Tasks' :
+             filter === 'upcoming' ? '📆 Upcoming Tasks' :
+             filter === 'completed' ? '✅ Completed Tasks' :
+             '📋 All Tasks'}
+          </h1>
+          <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+            {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
+          </span>
         </div>
 
-        <div className="sidebar-content">
-          <div className="sidebar-section">
-            <button
-              className="nav-item"
-              onClick={() => navigate('/')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <span className="nav-item-text">Notes</span>
-            </button>
-            <button
-              className="nav-item active"
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-              <span className="nav-item-text">Tasks</span>
-            </button>
-            <button
-              className="nav-item"
-              onClick={() => navigate('/bookmarks')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="nav-item-text">Bookmarks</span>
-            </button>
-          </div>
-
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">Filters</div>
-            <button
-              className={`nav-item ${filter === 'all' ? 'active' : ''}`}
-              onClick={() => setFilter('all')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-              </svg>
-              <span className="nav-item-text">All Pending</span>
-              <span className="nav-item-badge">{pendingCount}</span>
-            </button>
-            <button
-              className={`nav-item ${filter === 'today' ? 'active' : ''}`}
-              onClick={() => setFilter('today')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              <span className="nav-item-text">Today</span>
-              <span className="nav-item-badge">{todayCount}</span>
-            </button>
-            <button
-              className={`nav-item ${filter === 'upcoming' ? 'active' : ''}`}
-              onClick={() => setFilter('upcoming')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="22 7 13.5 15.5 8.5 10.5 2 17" />
-                <polyline points="16 7 22 7 22 13" />
-              </svg>
-              <span className="nav-item-text">Upcoming</span>
-              <span className="nav-item-badge">{upcomingCount}</span>
-            </button>
-            <button
-              className={`nav-item ${filter === 'completed' ? 'active' : ''}`}
-              onClick={() => setFilter('completed')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-              <span className="nav-item-text">Completed</span>
-              <span className="nav-item-badge">{completedCount}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="nav-item" style={{ marginBottom: 'var(--space-2)' }}>
-            <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
+        <div className="main-header-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setNewTask({ title: '', description: '', due_date: '', priority: 'medium' })
+              setShowNewTaskModal(true)
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span className="nav-item-text">{user?.email}</span>
-          </div>
+            New Task
+          </button>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Content */}
-      <main className="app-content">
-        <header className="main-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-            <h1 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}>
-              {filter === 'today' ? '📅 Today\'s Tasks' :
-               filter === 'upcoming' ? '📆 Upcoming Tasks' :
-               filter === 'completed' ? '✅ Completed Tasks' :
-               '📋 All Tasks'}
-            </h1>
-            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-              {filteredTasks.length} {filteredTasks.length === 1 ? 'task' : 'tasks'}
-            </span>
+      <div className="main-content">
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading-spinner" />
           </div>
-
-          <div className="main-header-actions">
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setNewTask({ title: '', description: '', due_date: '', priority: 'medium' })
-                setShowNewTaskModal(true)
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              New Task
-            </button>
-          </div>
-        </header>
-
-        <div className="main-content">
-          {loading ? (
-            <div className="auth-container">
-              <div className="loading-spinner" />
-            </div>
           ) : filteredTasks.length === 0 ? (
             <div className="empty-state">
               <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -464,7 +353,6 @@ export default function TasksPage() {
             </div>
           )}
         </div>
-      </main>
 
       {/* New Task Modal */}
       {(showNewTaskModal || editingTask) && (
@@ -538,6 +426,6 @@ export default function TasksPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   )
 }

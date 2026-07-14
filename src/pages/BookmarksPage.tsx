@@ -1,12 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../components/AuthContext'
 import { useToast } from '../components/ToastContext'
+import { AppLayout } from '../components/AppLayout'
 import { Bookmark } from '../lib/types'
 
 export default function BookmarksPage() {
-  const navigate = useNavigate()
   const { user } = useAuth()
   const { showToast } = useToast()
 
@@ -14,7 +13,7 @@ export default function BookmarksPage() {
   const [loading, setLoading] = useState(true)
   const [showNewBookmarkModal, setShowNewBookmarkModal] = useState(false)
   const [editingBookmark, setEditingBookmark] = useState<Bookmark | null>(null)
-  const [showArchived, setShowArchived] = useState(false)
+  const [showArchived, _setShowArchived] = useState(false)
   const [newBookmark, setNewBookmark] = useState({
     url: '',
     title: '',
@@ -188,122 +187,40 @@ export default function BookmarksPage() {
     })
   }
 
-  const activeCount = bookmarks.filter(b => !b.archived).length
-  const archivedCount = bookmarks.filter(b => b.archived).length
-
   return (
-    <div className="app">
-      {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <h1 className="sidebar-logo">CAMBRIC</h1>
-          <p className="sidebar-tagline">Atlas</p>
+    <AppLayout>
+      <header className="main-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+          <h1 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}>
+            {showArchived ? '📦 Archived' : '🔖 Bookmarks'}
+          </h1>
+          <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+            {filteredBookmarks.length} bookmarks
+          </span>
         </div>
 
-        <div className="sidebar-content">
-          <div className="sidebar-section">
-            <button
-              className="nav-item"
-              onClick={() => navigate('/')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                <polyline points="14 2 14 8 20 8" />
-              </svg>
-              <span className="nav-item-text">Notes</span>
-            </button>
-            <button
-              className="nav-item"
-              onClick={() => navigate('/tasks')}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M9 11l3 3L22 4" />
-                <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-              </svg>
-              <span className="nav-item-text">Tasks</span>
-            </button>
-            <button
-              className="nav-item active"
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="nav-item-text">Bookmarks</span>
-            </button>
-          </div>
-
-          <div className="sidebar-section">
-            <div className="sidebar-section-title">View</div>
-            <button
-              className={`nav-item ${!showArchived ? 'active' : ''}`}
-              onClick={() => setShowArchived(false)}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-              </svg>
-              <span className="nav-item-text">Active</span>
-              <span className="nav-item-badge">{activeCount}</span>
-            </button>
-            <button
-              className={`nav-item ${showArchived ? 'active' : ''}`}
-              onClick={() => setShowArchived(true)}
-            >
-              <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <polyline points="21 8 21 21 3 21 3 8" />
-                <rect x="1" y="3" width="22" height="5" />
-                <line x1="10" y1="12" x2="14" y2="12" />
-              </svg>
-              <span className="nav-item-text">Archived</span>
-              <span className="nav-item-badge">{archivedCount}</span>
-            </button>
-          </div>
-        </div>
-
-        <div className="sidebar-footer">
-          <div className="nav-item" style={{ marginBottom: 'var(--space-2)' }}>
-            <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-              <circle cx="12" cy="7" r="4" />
+        <div className="main-header-actions">
+          <button
+            className="btn btn-primary"
+            onClick={() => {
+              setNewBookmark({ url: '', title: '', description: '' })
+              setShowNewBookmarkModal(true)
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span className="nav-item-text">{user?.email}</span>
-          </div>
+            Add Bookmark
+          </button>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Content */}
-      <main className="app-content">
-        <header className="main-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
-            <h1 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}>
-              {showArchived ? '📦 Archived Bookmarks' : '🔖 Bookmarks'}
-            </h1>
-            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-              {filteredBookmarks.length} {filteredBookmarks.length === 1 ? 'bookmark' : 'bookmarks'}
-            </span>
+      <div className="main-content" style={{ padding: 'var(--space-6)' }}>
+        {loading ? (
+          <div className="loading-container">
+            <div className="loading-spinner" />
           </div>
-
-          <div className="main-header-actions">
-            <button
-              className="btn btn-primary"
-              onClick={() => {
-                setNewBookmark({ url: '', title: '', description: '' })
-                setShowNewBookmarkModal(true)
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              Add Bookmark
-            </button>
-          </div>
-        </header>
-
-        <div className="main-content">
-          {loading ? (
-            <div className="auth-container">
-              <div className="loading-spinner" />
-            </div>
           ) : filteredBookmarks.length === 0 ? (
             <div className="empty-state">
               <svg className="empty-state-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -479,7 +396,6 @@ export default function BookmarksPage() {
             </div>
           )}
         </div>
-      </main>
 
       {/* New Bookmark Modal */}
       {(showNewBookmarkModal || editingBookmark) && (
@@ -540,6 +456,6 @@ export default function BookmarksPage() {
           </div>
         </div>
       )}
-    </div>
+    </AppLayout>
   )
 }
