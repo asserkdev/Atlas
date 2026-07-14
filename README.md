@@ -1,6 +1,6 @@
 # Atlas v0.1
 
-Atlas is a knowledge and project workspace — the place where you store, organize, connect, and manage everything you know and create.
+Atlas is your personal daily workspace — the place where you store, organize, and manage everything you know and do.
 
 Built with:
 - React + TypeScript + Vite
@@ -14,13 +14,27 @@ Built with:
 
 ## Features
 
-- **Notes**: Create, edit, and organize notes with rich text formatting
+### Daily Use Tools
+- **Tasks** — Full task management with priorities, due dates, and completion tracking
+- **Bookmarks** — Save links for later with auto-fetch titles and personal notes
+- **Notes** — Rich text notes with templates for meetings, daily journals, and task lists
+
+### Organization
 - **Projects**: Group related notes into projects
 - **Folders**: Organize notes and projects into folders (one level deep)
-- **Search**: Fast client-side search across all notes
-- **Autosave**: Notes save automatically as you type
+- **Tags**: Color-coded tags for flexible categorization
+- **Starred**: Quick access to important items
+
+### Productivity
+- **Quick Search** (⌘/Ctrl+K): Search across all notes instantly
+- **Templates**: Pre-built templates for common note types
+- **Word Count**: See reading time and word count in the editor
+- **Export**: Download notes as Markdown files
+- **Autosave**: Everything saves automatically as you type
+
+### Security & Privacy
+- **Row Level Security**: All data is protected — users can only access their own data
 - **Responsive**: Works on desktop and mobile browsers
-- **Row Level Security**: All data is protected - users can only access their own data
 
 ## Quick Start
 
@@ -30,7 +44,9 @@ Built with:
 2. Go to **Settings > API** and copy:
    - **Project URL**
    - **anon/public** key
-3. In the Supabase dashboard, go to **SQL Editor** and run the schema from `supabase/schema.sql`
+3. In the Supabase dashboard, go to **SQL Editor** and run:
+   - First run `supabase/schema.sql` (main schema)
+   - Then run `supabase/migrations/002_add_tasks_and_bookmarks.sql` (if you want Tasks & Bookmarks)
 
 ### 2. Configure Environment Variables
 
@@ -74,9 +90,12 @@ Required environment variables in Vercel:
 
 ## Data Model
 
-- **Notes**: title, rich text content (HTML), timestamps
+- **Notes**: title, rich text content (HTML), starred, word count, timestamps
 - **Projects**: name, description, contains notes
 - **Folders**: name, optional parent folder (one level nesting)
+- **Tasks**: title, description, due date, priority (low/medium/high), completed status
+- **Bookmarks**: URL, title, description, favicon, archived status
+- **Tags**: name, color (for notes)
 
 ## Security
 
