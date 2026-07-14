@@ -7,6 +7,8 @@ import { isConfigured } from './lib/supabase'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
 import NoteEditorPage from './pages/NoteEditorPage'
+import TasksPage from './pages/TasksPage'
+import BookmarksPage from './pages/BookmarksPage'
 
 // Debug flag - shows simple page first to diagnose issues
 const DEBUG_MODE = false
@@ -208,6 +210,22 @@ function AppRoutes() {
           element={
             <ProtectedRoute>
               <NoteEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tasks"
+          element={
+            <ProtectedRoute>
+              <TasksPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/bookmarks"
+          element={
+            <ProtectedRoute>
+              <BookmarksPage />
             </ProtectedRoute>
           }
         />

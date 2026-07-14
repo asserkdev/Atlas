@@ -58,6 +58,33 @@ CREATE TABLE IF NOT EXISTS note_tags (
     PRIMARY KEY (note_id, tag_id)
 );
 
+-- TASKS TABLE
+CREATE TABLE IF NOT EXISTS tasks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    description TEXT,
+    due_date DATE,
+    priority TEXT DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
+    completed BOOLEAN DEFAULT FALSE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- BOOKMARKS TABLE
+CREATE TABLE IF NOT EXISTS bookmarks (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    url TEXT NOT NULL,
+    title TEXT,
+    description TEXT,
+    favicon TEXT,
+    archived BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- ========================================
 -- ROW LEVEL SECURITY POLICIES
 -- ========================================
@@ -140,6 +167,36 @@ CREATE POLICY "Users can delete their own note_tags" ON note_tags
         SELECT user_id FROM notes WHERE id = note_id
     ));
 
+-- Tasks: Users can only access their own tasks
+ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own tasks" ON tasks
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own tasks" ON tasks
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own tasks" ON tasks
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own tasks" ON tasks
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Bookmarks: Users can only access their own bookmarks
+ALTER TABLE bookmarks ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own bookmarks" ON bookmarks
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own bookmarks" ON bookmarks
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own bookmarks" ON bookmarks
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own bookmarks" ON bookmarks
+    FOR DELETE USING (auth.uid() = user_id);
+
 -- ========================================
 -- INDEXES FOR PERFORMANCE
 -- ========================================
@@ -159,6 +216,14 @@ CREATE INDEX IF NOT EXISTS idx_notes_starred ON notes(starred) WHERE starred = T
 CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id);
 CREATE INDEX IF NOT EXISTS idx_note_tags_note_id ON note_tags(note_id);
 CREATE INDEX IF NOT EXISTS idx_note_tags_tag_id ON note_tags(tag_id);
+
+CREATE INDEX IF NOT EXISTS idx_tasks_user_id ON tasks(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+CREATE INDEX IF NOT EXISTS idx_tasks_completed ON tasks(completed);
+CREATE INDEX IF NOT EXISTS idx_tasks_priority ON tasks(priority);
+
+CREATE INDEX IF NOT EXISTS idx_bookmarks_user_id ON bookmarks(user_id);
+CREATE INDEX IF NOT EXISTS idx_bookmarks_archived ON bookmarks(archived);
 
 -- ========================================
 -- TRIGGERS FOR UPDATED_AT
@@ -184,5 +249,15 @@ CREATE TRIGGER update_projects_updated_at
 
 CREATE TRIGGER update_notes_updated_at
     BEFORE UPDATE ON notes
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_tasks_updated_at
+    BEFORE UPDATE ON tasks
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_bookmarks_updated_at
+    BEFORE UPDATE ON bookmarks
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
