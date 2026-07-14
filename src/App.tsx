@@ -182,9 +182,12 @@ function AppRoutes() {
   )
 }
 
+// Get the base path for GitHub Pages subdirectory deployment
+const basename = import.meta.env.DEV ? '/' : '/Atlas/'
+
 export default function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename={basename}>
       <AuthProvider>
         <ToastProvider>
           <AppRoutes />
