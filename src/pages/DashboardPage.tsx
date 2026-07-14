@@ -52,6 +52,50 @@ export default function DashboardPage() {
     fetchData()
   }, [fetchData])
 
+  // Create Welcome to Atlas note for new users
+  const handleCreateWelcomeNote = async () => {
+    if (!user) return
+
+    try {
+      const welcomeContent = `<h1>Welcome to Atlas</h1>
+<p>Atlas is your personal knowledge workspace. Here's how to get started:</p>
+
+<h2>Creating Notes</h2>
+<p>Click the "New Note" button to create your first note. Notes support rich formatting including:</p>
+<ul>
+<li><strong>Bold</strong> and <em>italic</em> text</li>
+<li>Multiple heading levels</li>
+<li>Bullet and numbered lists</li>
+<li>Blockquotes and code blocks</li>
+</ul>
+
+<h2>Organizing with Folders and Projects</h2>
+<p>Use folders to group related notes together. Projects let you collect notes around specific goals or topics.</p>
+
+<h2>Autosave</h2>
+<p>Your notes save automatically as you type. No need to manually save!</p>
+
+<h2>Search</h2>
+<p>Use the search bar to quickly find notes by title or content.</p>
+
+<p>Happy note-taking! 📝</p>`
+
+      const { data, error } = await supabase.from('notes').insert({
+        user_id: user.id,
+        title: 'Welcome to Atlas',
+        content: welcomeContent,
+      }).select().single()
+
+      if (error) throw error
+
+      showToast('success', 'Welcome note created')
+      navigate(`/note/${data.id}`)
+    } catch (error) {
+      console.error('Error creating welcome note:', error)
+      showToast('error', 'Failed to create welcome note')
+    }
+  }
+
   const filteredNotes = notes.filter((note) => {
     const matchesSearch =
       note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -461,12 +505,22 @@ export default function DashboardPage() {
                   : 'Create your first note to start building your knowledge workspace'}
               </p>
               {!searchQuery && (
-                <button
-                  className="btn btn-primary"
-                  onClick={() => handleCreateNote(selectedFolder?.id, selectedProject?.id)}
-                >
-                  Create your first note
-                </button>
+                <>
+                  <button
+                    className="btn btn-primary"
+                    onClick={() => handleCreateNote(selectedFolder?.id, selectedProject?.id)}
+                    style={{ marginBottom: 'var(--space-3)' }}
+                  >
+                    Create your first note
+                  </button>
+                  <button
+                    className="btn btn-secondary"
+                    onClick={handleCreateWelcomeNote}
+                    style={{ fontSize: 'var(--font-size-sm)' }}
+                  >
+                    Or start with Welcome to Atlas
+                  </button>
+                </>
               )}
             </div>
           ) : (
