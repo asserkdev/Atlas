@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../components/AuthContext'
 import { useToast } from '../components/ToastContext'
-import { Note, Folder, Project } from '../lib/types'
+import { Note, Folder, Project, Tag } from '../lib/types'
 
 export default function DashboardPage() {
   const { user, signOut } = useAuth()
@@ -13,33 +13,48 @@ export default function DashboardPage() {
   const [notes, setNotes] = useState<Note[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
   const [projects, setProjects] = useState<Project[]>([])
+  const [tags, setTags] = useState<Tag[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null)
   const [selectedProject, setSelectedProject] = useState<Project | null>(null)
+  const [selectedTag, setSelectedTag] = useState<Tag | null>(null)
+  const [showStarred, setShowStarred] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [showNewFolderModal, setShowNewFolderModal] = useState(false)
   const [showNewProjectModal, setShowNewProjectModal] = useState(false)
+  const [showNewTagModal, setShowNewTagModal] = useState(false)
   const [newItemName, setNewItemName] = useState('')
   const [newItemDescription, setNewItemDescription] = useState('')
+  const [newTagColor, setNewTagColor] = useState('#67e8f9')
 
   const fetchData = useCallback(async () => {
     if (!user) return
 
     try {
-      const [foldersRes, projectsRes, notesRes] = await Promise.all([
+      const [foldersRes, projectsRes, notesRes, tagsRes] = await Promise.all([
         supabase.from('folders').select('*').eq('user_id', user.id).order('name'),
         supabase.from('projects').select('*').eq('user_id', user.id).order('name'),
         supabase.from('notes').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
+        supabase.from('tags').select('*').eq('user_id', user.id).order('name'),
       ])
 
       if (foldersRes.error) throw foldersRes.error
       if (projectsRes.error) throw projectsRes.error
       if (notesRes.error) throw notesRes.error
+      if (tagsRes.error) throw tagsRes.error
+
+      // Add default values for new fields
+      const notesWithDefaults = (notesRes.data || []).map(note => ({
+        ...note,
+        starred: note.starred || false,
+        word_count: note.word_count || 0,
+      }))
 
       setFolders(foldersRes.data || [])
       setProjects(projectsRes.data || [])
-      setNotes(notesRes.data || [])
+      setNotes(notesWithDefaults)
+      setTags(tagsRes.data || [])
     } catch (error) {
       console.error('Error fetching data:', error)
       showToast('error', 'Failed to load data')
@@ -103,9 +118,12 @@ export default function DashboardPage() {
     
     const matchesFolder = !selectedFolder || note.folder_id === selectedFolder.id
     const matchesProject = !selectedProject || note.project_id === selectedProject.id
+    const matchesStarred = !showStarred || note.starred
 
-    return matchesSearch && matchesFolder && matchesProject
+    return matchesSearch && matchesFolder && matchesProject && matchesStarred
   })
+
+  const starredNotes = notes.filter(note => note.starred)
 
   const handleCreateFolder = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -150,6 +168,51 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Error creating project:', error)
       showToast('error', 'Failed to create project')
+    }
+  }
+
+  const handleCreateTag = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || !newItemName.trim()) return
+
+    try {
+      const { error } = await supabase.from('tags').insert({
+        user_id: user.id,
+        name: newItemName.trim().toLowerCase(),
+        color: newTagColor,
+      })
+
+      if (error) throw error
+
+      showToast('success', 'Tag created')
+      setNewItemName('')
+      setNewTagColor('#67e8f9')
+      setShowNewTagModal(false)
+      fetchData()
+    } catch (error) {
+      console.error('Error creating tag:', error)
+      showToast('error', 'Failed to create tag')
+    }
+  }
+
+  const handleToggleStarred = async (noteId: string, currentStarred: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ starred: !currentStarred })
+        .eq('id', noteId)
+
+      if (error) throw error
+
+      // Update local state
+      setNotes(notes.map(note => 
+        note.id === noteId ? { ...note, starred: !currentStarred } : note
+      ))
+      
+      showToast('success', currentStarred ? 'Removed from starred' : 'Added to starred')
+    } catch (error) {
+      console.error('Error toggling starred:', error)
+      showToast('error', 'Failed to update note')
     }
   }
 
@@ -289,10 +352,11 @@ export default function DashboardPage() {
           <div className="sidebar-section">
             <div className="sidebar-section-title">Overview</div>
             <button
-              className={`nav-item ${!selectedFolder && !selectedProject ? 'active' : ''}`}
+              className={`nav-item ${!selectedFolder && !selectedProject && !showStarred ? 'active' : ''}`}
               onClick={() => {
                 setSelectedFolder(null)
                 setSelectedProject(null)
+                setShowStarred(false)
               }}
             >
               <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -303,6 +367,20 @@ export default function DashboardPage() {
               </svg>
               <span className="nav-item-text">All Notes</span>
               <span className="nav-item-badge">{notes.length}</span>
+            </button>
+            <button
+              className={`nav-item ${showStarred ? 'active' : ''}`}
+              onClick={() => {
+                setSelectedFolder(null)
+                setSelectedProject(null)
+                setShowStarred(true)
+              }}
+            >
+              <svg className="nav-item-icon" viewBox="0 0 24 24" fill={showStarred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+              </svg>
+              <span className="nav-item-text">Starred</span>
+              <span className="nav-item-badge">{starredNotes.length}</span>
             </button>
           </div>
 
@@ -408,6 +486,50 @@ export default function DashboardPage() {
               </p>
             )}
           </div>
+
+          {/* Tags */}
+          <div className="sidebar-section">
+            <div className="sidebar-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              Tags
+              <button
+                className="btn btn-icon btn-ghost"
+                onClick={() => setShowNewTagModal(true)}
+                style={{ padding: '2px' }}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+            </div>
+            {tags.map((tag) => (
+              <button
+                key={tag.id}
+                className={`nav-item ${selectedTag?.id === tag.id ? 'active' : ''}`}
+                onClick={() => {
+                  setSelectedTag(tag)
+                  setSelectedFolder(null)
+                  setSelectedProject(null)
+                  setShowStarred(false)
+                }}
+                style={{ gap: 'var(--space-2)' }}
+              >
+                <span style={{ 
+                  width: 8, 
+                  height: 8, 
+                  borderRadius: '50%', 
+                  backgroundColor: tag.color,
+                  flexShrink: 0 
+                }} />
+                <span className="nav-item-text">{tag.name}</span>
+              </button>
+            ))}
+            {tags.length === 0 && (
+              <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', padding: 'var(--space-2) var(--space-3)' }}>
+                No tags yet
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="sidebar-footer">
@@ -449,31 +571,33 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="app-content">
         <header className="main-header">
-          <div className="search-bar">
-            <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="11" cy="11" r="8" />
-              <line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              type="text"
-              className="search-input"
-              placeholder="Search notes..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-4)' }}>
+            <h1 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)' }}>
+              {showStarred ? '⭐ Starred Notes' : 
+               selectedTag ? `# ${selectedTag.name}` :
+               selectedFolder ? selectedFolder.name :
+               selectedProject ? selectedProject.name :
+               'All Notes'}
+            </h1>
+            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+              {filteredNotes.length} {filteredNotes.length === 1 ? 'note' : 'notes'}
+            </span>
           </div>
 
           <div className="main-header-actions">
-            {selectedFolder && (
-              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                {selectedFolder.name}
-              </span>
-            )}
-            {selectedProject && (
-              <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
-                {selectedProject.name}
-              </span>
-            )}
+            <div className="search-bar">
+              <svg className="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="search-input"
+                placeholder="Search notes... (⌘K)"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
             <button
               className="btn btn-primary"
               onClick={() => handleCreateNote(selectedFolder?.id, selectedProject?.id)}
@@ -546,9 +670,23 @@ export default function DashboardPage() {
                     e.currentTarget.style.background = 'var(--color-bg-secondary)'
                   }}
                 >
-                  <h3 style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', marginBottom: 'var(--space-2)', color: 'var(--color-text-primary)' }}>
-                    {note.title || 'Untitled Note'}
-                  </h3>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 'var(--space-2)' }}>
+                    <h3 style={{ fontSize: 'var(--font-size-base)', fontWeight: 'var(--font-weight-semibold)', color: 'var(--color-text-primary)', flex: 1 }}>
+                      {note.title || 'Untitled Note'}
+                    </h3>
+                    <button
+                      className="btn btn-icon btn-ghost"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleToggleStarred(note.id, note.starred)
+                      }}
+                      style={{ padding: 'var(--space-1)', color: note.starred ? 'var(--color-accent)' : 'inherit' }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill={note.starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                      </svg>
+                    </button>
+                  </div>
                   {note.content && (
                     <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-3)', lineHeight: '1.6' }}>
                       {getPreview(note.content)}
@@ -656,6 +794,65 @@ export default function DashboardPage() {
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn btn-secondary" onClick={() => setShowNewProjectModal(false)}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn btn-primary">
+                  Create
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* New Tag Modal */}
+      {showNewTagModal && (
+        <div className="modal-overlay" onClick={() => setShowNewTagModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">New Tag</h3>
+              <button className="modal-close" onClick={() => setShowNewTagModal(false)}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreateTag}>
+              <div className="form-group">
+                <label className="form-label">Tag name</label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="e.g. important, idea, todo"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Color</label>
+                <div style={{ display: 'flex', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  {['#67e8f9', '#34d399', '#fbbf24', '#f87171', '#a78bfa', '#fb923c', '#f472b6', '#60a5fa'].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setNewTagColor(color)}
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: color,
+                        border: newTagColor === color ? '2px solid white' : '2px solid transparent',
+                        cursor: 'pointer',
+                      }}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setShowNewTagModal(false)}>
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary">

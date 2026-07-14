@@ -35,8 +35,27 @@ CREATE TABLE IF NOT EXISTS notes (
     folder_id UUID REFERENCES folders(id) ON DELETE SET NULL,
     title TEXT NOT NULL DEFAULT 'Untitled Note',
     content TEXT DEFAULT '',
+    starred BOOLEAN DEFAULT FALSE,
+    word_count INTEGER DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- TAGS TABLE
+CREATE TABLE IF NOT EXISTS tags (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    color TEXT DEFAULT '#67e8f9',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE(user_id, name)
+);
+
+-- NOTE_TAGS JUNCTION TABLE
+CREATE TABLE IF NOT EXISTS note_tags (
+    note_id UUID REFERENCES notes(id) ON DELETE CASCADE,
+    tag_id UUID REFERENCES tags(id) ON DELETE CASCADE,
+    PRIMARY KEY (note_id, tag_id)
 );
 
 -- ========================================
@@ -88,6 +107,39 @@ CREATE POLICY "Users can update their own notes" ON notes
 CREATE POLICY "Users can delete their own notes" ON notes
     FOR DELETE USING (auth.uid() = user_id);
 
+-- Tags: Users can only access their own tags
+ALTER TABLE tags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own tags" ON tags
+    FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can insert their own tags" ON tags
+    FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can update their own tags" ON tags
+    FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "Users can delete their own tags" ON tags
+    FOR DELETE USING (auth.uid() = user_id);
+
+-- Note Tags: Users can only access tags for their notes
+ALTER TABLE note_tags ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view their own note_tags" ON note_tags
+    FOR SELECT USING (auth.uid() IN (
+        SELECT user_id FROM notes WHERE id = note_id
+    ));
+
+CREATE POLICY "Users can insert their own note_tags" ON note_tags
+    FOR INSERT WITH CHECK (auth.uid() IN (
+        SELECT user_id FROM notes WHERE id = note_id
+    ));
+
+CREATE POLICY "Users can delete their own note_tags" ON note_tags
+    FOR DELETE USING (auth.uid() IN (
+        SELECT user_id FROM notes WHERE id = note_id
+    ));
+
 -- ========================================
 -- INDEXES FOR PERFORMANCE
 -- ========================================
@@ -102,6 +154,11 @@ CREATE INDEX IF NOT EXISTS idx_notes_user_id ON notes(user_id);
 CREATE INDEX IF NOT EXISTS idx_notes_project_id ON notes(project_id);
 CREATE INDEX IF NOT EXISTS idx_notes_folder_id ON notes(folder_id);
 CREATE INDEX IF NOT EXISTS idx_notes_updated_at ON notes(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notes_starred ON notes(starred) WHERE starred = TRUE;
+
+CREATE INDEX IF NOT EXISTS idx_tags_user_id ON tags(user_id);
+CREATE INDEX IF NOT EXISTS idx_note_tags_note_id ON note_tags(note_id);
+CREATE INDEX IF NOT EXISTS idx_note_tags_tag_id ON note_tags(tag_id);
 
 -- ========================================
 -- TRIGGERS FOR UPDATED_AT

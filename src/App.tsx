@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './components/AuthContext'
 import { ToastProvider } from './components/ToastContext'
+import { QuickSearchModal } from './components/QuickSearchModal'
 import { isConfigured } from './lib/supabase'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
@@ -135,6 +137,37 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function AppRoutes() {
+  const [showQuickSearch, setShowQuickSearch] = useState(false)
+  const { user } = useAuth()
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K for quick search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        if (user) {
+          setShowQuickSearch(true)
+        }
+      }
+      // Cmd/Ctrl + N for new note (only when not in an input)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        const target = e.target as HTMLElement
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
+          e.preventDefault()
+          window.location.href = '/note/new'
+        }
+      }
+      // Escape to close quick search
+      if (e.key === 'Escape' && showQuickSearch) {
+        setShowQuickSearch(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [user, showQuickSearch])
+
   if (DEBUG_MODE) {
     return <DebugPage />
   }
@@ -144,41 +177,49 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/auth"
-        element={
-          <PublicRoute>
-            <AuthPage />
-          </PublicRoute>
-        }
-      />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/note/:id"
-        element={
-          <ProtectedRoute>
-            <NoteEditorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/note/new"
-        element={
-          <ProtectedRoute>
-            <NoteEditorPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route
+          path="/auth"
+          element={
+            <PublicRoute>
+              <AuthPage />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/note/:id"
+          element={
+            <ProtectedRoute>
+              <NoteEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/note/new"
+          element={
+            <ProtectedRoute>
+              <NoteEditorPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      {user && (
+        <QuickSearchModal 
+          isOpen={showQuickSearch} 
+          onClose={() => setShowQuickSearch(false)} 
+        />
+      )}
+    </>
   )
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -6,7 +6,88 @@ import Placeholder from '@tiptap/extension-placeholder'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../components/AuthContext'
 import { useToast } from '../components/ToastContext'
-import { Note, Folder, Project } from '../lib/types'
+import { Note, Folder, Project, NoteTemplate } from '../lib/types'
+
+// Note templates
+const TEMPLATES: NoteTemplate[] = [
+  {
+    id: 'blank',
+    name: 'Blank Note',
+    description: 'Start from scratch',
+    icon: '📄',
+    content: '',
+  },
+  {
+    id: 'meeting',
+    name: 'Meeting Notes',
+    description: 'Capture meeting discussions',
+    icon: '📅',
+    content: `<h1>Meeting Notes</h1>
+<p><strong>Date:</strong> ${new Date().toLocaleDateString()}</p>
+<p><strong>Attendees:</strong> </p>
+
+<h2>Agenda</h2>
+<ul>
+<li>Topic 1</li>
+<li>Topic 2</li>
+</ul>
+
+<h2>Discussion</h2>
+<p></p>
+
+<h2>Action Items</h2>
+<ul>
+<li>[ ] Task 1</li>
+<li>[ ] Task 2</li>
+</ul>
+
+<h2>Next Steps</h2>
+<p></p>`,
+  },
+  {
+    id: 'todo',
+    name: 'Task List',
+    description: 'Track your tasks',
+    icon: '✅',
+    content: `<h1>My Tasks</h1>
+
+<h2>In Progress</h2>
+<ul>
+<li>[ ] Task 1</li>
+<li>[ ] Task 2</li>
+</ul>
+
+<h2>Completed</h2>
+<ul>
+<li>[x] Completed task</li>
+</ul>
+
+<h2>Notes</h2>
+<p></p>`,
+  },
+  {
+    id: 'daily',
+    name: 'Daily Journal',
+    description: 'Daily reflection',
+    icon: '📓',
+    content: `<h1>${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</h1>
+
+<h2>Morning Intentions</h2>
+<p></p>
+
+<h2>Top 3 Priorities</h2>
+<ol>
+<li></li>
+<li></li>
+<li></li>
+</ol>
+
+<h2>Evening Reflection</h2>
+<p><strong>What went well:</strong> </p>
+<p><strong>What could improve:</strong> </p>
+<p><strong>Grateful for:</strong> </p>`,
+  },
+]
 
 export default function NoteEditorPage() {
   const { id } = useParams<{ id: string }>()
@@ -22,6 +103,7 @@ export default function NoteEditorPage() {
   const [saving, setSaving] = useState(false)
   const [lastSaved, setLastSaved] = useState<Date | null>(null)
   const [showMoveModal, setShowMoveModal] = useState(false)
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const editor = useEditor({
@@ -39,6 +121,18 @@ export default function NoteEditorPage() {
     },
   })
 
+  // Calculate word count and reading time
+  const stats = useMemo(() => {
+    if (!editor) return { words: 0, chars: 0, readTime: 0 }
+    
+    const text = editor.getText()
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0
+    const chars = text.length
+    const readTime = Math.ceil(words / 200) // Average reading speed: 200 words/min
+    
+    return { words, chars, readTime }
+  }, [editor?.getText()])
+
   const scheduleAutoSave = useCallback((content: string) => {
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current)
@@ -54,11 +148,16 @@ export default function NoteEditorPage() {
     
     setSaving(true)
     try {
+      // Calculate word count from content
+      const textContent = (content || editor?.getHTML() || '').replace(/<[^>]*>/g, ' ')
+      const wordCount = textContent.trim() ? textContent.trim().split(/\s+/).length : 0
+      
       const { error } = await supabase
         .from('notes')
         .update({
           title: title || 'Untitled Note',
           content: content || editor?.getHTML() || '',
+          word_count: wordCount,
           updated_at: new Date().toISOString(),
         })
         .eq('id', note.id)
@@ -74,7 +173,14 @@ export default function NoteEditorPage() {
   }
 
   const fetchNote = useCallback(async () => {
-    if (!user || !id) return
+    if (!user) return
+
+    // If no ID, we're creating a new note - show template picker
+    if (!id || id === 'new') {
+      setShowTemplateModal(true)
+      setLoading(false)
+      return
+    }
 
     try {
       const { data, error } = await supabase
@@ -190,6 +296,95 @@ export default function NoteEditorPage() {
     return lastSaved.toLocaleTimeString()
   }
 
+  const handleCreateFromTemplate = async (template: NoteTemplate) => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('notes')
+        .insert({
+          user_id: user.id,
+          title: template.id === 'blank' ? 'Untitled Note' : template.name,
+          content: template.content,
+        })
+        .select()
+        .single()
+
+      if (error) throw error
+
+      showToast('success', `Created from ${template.name} template`)
+      setShowTemplateModal(false)
+      navigate(`/note/${data.id}`)
+    } catch (error) {
+      console.error('Error creating note from template:', error)
+      showToast('error', 'Failed to create note')
+    }
+  }
+
+  const handleExportMarkdown = () => {
+    if (!title || !editor) return
+
+    // Convert HTML to simple markdown
+    let markdown = `# ${title}\n\n`
+    
+    const html = editor.getHTML()
+    
+    // Simple HTML to markdown conversion
+    let md = html
+      .replace(/<h1[^>]*>(.*?)<\/h1>/gi, '# $1\n\n')
+      .replace(/<h2[^>]*>(.*?)<\/h2>/gi, '## $1\n\n')
+      .replace(/<h3[^>]*>(.*?)<\/h3>/gi, '### $1\n\n')
+      .replace(/<strong[^>]*>(.*?)<\/strong>/gi, '**$1**')
+      .replace(/<em[^>]*>(.*?)<\/em>/gi, '*$1*')
+      .replace(/<ul[^>]*>/gi, '')
+      .replace(/<\/ul>/gi, '\n')
+      .replace(/<ol[^>]*>/gi, '')
+      .replace(/<\/ol>/gi, '\n')
+      .replace(/<li[^>]*>(.*?)<\/li>/gi, '- $1\n')
+      .replace(/<p[^>]*>(.*?)<\/p>/gi, '$1\n\n')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<[^>]*>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .trim()
+
+    markdown += md
+
+    // Create and download file
+    const blob = new Blob([markdown], { type: 'text/markdown' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.md`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    showToast('success', 'Exported as Markdown')
+  }
+
+  const handleToggleStarred = async () => {
+    if (!note) return
+
+    try {
+      const { error } = await supabase
+        .from('notes')
+        .update({ starred: !note.starred })
+        .eq('id', note.id)
+
+      if (error) throw error
+
+      setNote({ ...note, starred: !note.starred })
+      showToast('success', note.starred ? 'Removed from starred' : 'Added to starred')
+    } catch (error) {
+      console.error('Error toggling starred:', error)
+      showToast('error', 'Failed to update note')
+    }
+  }
+
   if (loading) {
     return (
       <div className="app">
@@ -251,6 +446,31 @@ export default function NoteEditorPage() {
               )}
             </span>
             
+            {note && (
+              <button
+                className="btn btn-icon btn-ghost"
+                onClick={handleToggleStarred}
+                title={note.starred ? 'Remove from starred' : 'Add to starred'}
+                style={{ color: note.starred ? 'var(--color-accent)' : 'inherit' }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill={note.starred ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+              </button>
+            )}
+
+            <button
+              className="btn btn-ghost"
+              onClick={handleExportMarkdown}
+              title="Export as Markdown"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+            </button>
+
             <button
               className="btn btn-ghost"
               onClick={() => setShowMoveModal(true)}
@@ -303,6 +523,13 @@ export default function NoteEditorPage() {
             {note?.project_id && projects.find(p => p.id === note.project_id) && (
               <span>Project: {projects.find(p => p.id === note.project_id)?.name}</span>
             )}
+          </div>
+
+          {/* Stats */}
+          <div style={{ display: 'flex', gap: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', marginBottom: 'var(--space-4)' }}>
+            <span>{stats.words} words</span>
+            <span>{stats.chars} characters</span>
+            <span>{stats.readTime} min read</span>
           </div>
 
           {/* Toolbar */}
@@ -471,6 +698,61 @@ export default function NoteEditorPage() {
               <button className="btn btn-secondary" onClick={() => setShowMoveModal(false)}>
                 Done
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Picker Modal */}
+      {showTemplateModal && (
+        <div className="modal-overlay" onClick={() => navigate('/')}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">Create New Note</h3>
+              <button className="modal-close" onClick={() => navigate('/')}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: 'var(--space-6)' }}>
+              Choose a template to get started
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 'var(--space-4)' }}>
+              {TEMPLATES.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => handleCreateFromTemplate(template)}
+                  style={{
+                    padding: 'var(--space-5)',
+                    background: 'var(--color-bg-tertiary)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-xl)',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all var(--transition-fast)',
+                  }}
+                  onMouseOver={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-accent)'
+                    e.currentTarget.style.background = 'var(--color-bg-card-hover)'
+                  }}
+                  onMouseOut={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--color-border)'
+                    e.currentTarget.style.background = 'var(--color-bg-tertiary)'
+                  }}
+                >
+                  <span style={{ fontSize: 'var(--font-size-2xl)', marginBottom: 'var(--space-2)', display: 'block' }}>
+                    {template.icon}
+                  </span>
+                  <h4 style={{ fontWeight: 'var(--font-weight-semibold)', marginBottom: 'var(--space-1)', color: 'var(--color-text-primary)' }}>
+                    {template.name}
+                  </h4>
+                  <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-muted)' }}>
+                    {template.description}
+                  </p>
+                </button>
+              ))}
             </div>
           </div>
         </div>

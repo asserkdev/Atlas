@@ -18,6 +18,14 @@ export interface Project {
   notes?: Note[]
 }
 
+export interface Tag {
+  id: string
+  user_id: string
+  name: string
+  color: string
+  created_at: string
+}
+
 export interface Note {
   id: string
   user_id: string
@@ -25,8 +33,19 @@ export interface Note {
   folder_id: string | null
   title: string
   content: string
+  starred: boolean
+  word_count: number
   created_at: string
   updated_at: string
+  tags?: Tag[]
+}
+
+export interface NoteTemplate {
+  id: string
+  name: string
+  description: string
+  icon: string
+  content: string
 }
 
 export interface User {
