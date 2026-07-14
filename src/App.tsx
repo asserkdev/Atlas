@@ -1,8 +1,10 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { AuthProvider, useAuth } from './components/AuthContext'
 import { ToastProvider } from './components/ToastContext'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { QuickSearchModal } from './components/QuickSearchModal'
+import { registerAtlasShortcuts } from './lib/keyboard'
 import { isConfigured } from './lib/supabase'
 import AuthPage from './pages/AuthPage'
 import DashboardPage from './pages/DashboardPage'
@@ -141,34 +143,31 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 function AppRoutes() {
   const [showQuickSearch, setShowQuickSearch] = useState(false)
   const { user } = useAuth()
+  const navigate = useNavigate()
 
-  // Global keyboard shortcuts
+  // Global keyboard shortcuts using centralized manager
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Cmd/Ctrl + K for quick search
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault()
-        if (user) {
-          setShowQuickSearch(true)
-        }
-      }
-      // Cmd/Ctrl + N for new note (only when not in an input)
-      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
-        const target = e.target as HTMLElement
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA' && !target.isContentEditable) {
-          e.preventDefault()
-          window.location.href = '/note/new'
-        }
-      }
-      // Escape to close quick search
+    const unregister = registerAtlasShortcuts({
+      onSearch: () => user && setShowQuickSearch(true),
+      onNewNote: () => user && (window.location.href = '/note/new'),
+      onNavigateNotes: () => navigate('/'),
+      onNavigateTasks: () => navigate('/tasks'),
+      onNavigateBookmarks: () => navigate('/bookmarks')
+    })
+
+    // Also handle Escape for quick search
+    const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape' && showQuickSearch) {
         setShowQuickSearch(false)
       }
     }
 
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [user, showQuickSearch])
+    window.addEventListener('keydown', handleEscape)
+    return () => {
+      unregister()
+      window.removeEventListener('keydown', handleEscape)
+    }
+  }, [user, showQuickSearch, navigate])
 
   if (DEBUG_MODE) {
     return <DebugPage />
@@ -179,7 +178,7 @@ function AppRoutes() {
   }
 
   return (
-    <>
+    <ErrorBoundary level="page">
       <Routes>
         <Route
           path="/auth"
@@ -193,7 +192,9 @@ function AppRoutes() {
           path="/"
           element={
             <ProtectedRoute>
-              <DashboardPage />
+              <ErrorBoundary level="section">
+                <DashboardPage />
+              </ErrorBoundary>
             </ProtectedRoute>
           }
         />
@@ -201,7 +202,9 @@ function AppRoutes() {
           path="/note/:id"
           element={
             <ProtectedRoute>
-              <NoteEditorPage />
+              <ErrorBoundary level="section">
+                <NoteEditorPage />
+              </ErrorBoundary>
             </ProtectedRoute>
           }
         />
@@ -209,7 +212,9 @@ function AppRoutes() {
           path="/note/new"
           element={
             <ProtectedRoute>
-              <NoteEditorPage />
+              <ErrorBoundary level="section">
+                <NoteEditorPage />
+              </ErrorBoundary>
             </ProtectedRoute>
           }
         />
@@ -217,7 +222,9 @@ function AppRoutes() {
           path="/tasks"
           element={
             <ProtectedRoute>
-              <TasksPage />
+              <ErrorBoundary level="section">
+                <TasksPage />
+              </ErrorBoundary>
             </ProtectedRoute>
           }
         />
@@ -225,7 +232,9 @@ function AppRoutes() {
           path="/bookmarks"
           element={
             <ProtectedRoute>
-              <BookmarksPage />
+              <ErrorBoundary level="section">
+                <BookmarksPage />
+              </ErrorBoundary>
             </ProtectedRoute>
           }
         />
@@ -237,7 +246,7 @@ function AppRoutes() {
           onClose={() => setShowQuickSearch(false)} 
         />
       )}
-    </>
+    </ErrorBoundary>
   )
 }
 
