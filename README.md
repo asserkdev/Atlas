@@ -44,9 +44,11 @@ Built with:
 2. Go to **Settings > API** and copy:
    - **Project URL**
    - **anon/public** key
-3. In the Supabase dashboard, go to **SQL Editor** and run:
+3. In the Supabase dashboard, go to **SQL Editor** and run the migrations in this order:
    - First run `supabase/schema.sql` (main schema)
-   - Then run `supabase/migrations/002_add_tasks_and_bookmarks.sql` (if you want Tasks & Bookmarks)
+   - Then run `supabase/migrations/002_add_tasks_and_bookmarks.sql` (Tasks & Bookmarks)
+   - Then run `supabase/fix_notes_table.sql` (fix missing columns)
+   - Then run `supabase/setup_missing_tables.sql` (tags table)
 
 ### 2. Configure Environment Variables
 
@@ -89,6 +91,8 @@ Required environment variables in Vercel:
 - `VITE_SUPABASE_ANON_KEY` - Your Supabase anon key
 
 ## Data Model
+
+> ⚠️ **Important**: If using the live Supabase instance, run all SQL migrations from the `supabase/` folder in the SQL Editor to ensure all tables and columns exist.
 
 - **Notes**: title, rich text content (HTML), starred, word count, timestamps
 - **Projects**: name, description, contains notes

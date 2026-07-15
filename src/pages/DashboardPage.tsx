@@ -48,8 +48,8 @@ export default function DashboardPage() {
 
       const notesWithDefaults = (notesRes.data || []).map(note => ({
         ...note,
-        starred: note.starred || false,
-        word_count: note.word_count || 0,
+        starred: note.starred ?? false,
+        word_count: note.word_count ?? 0,
       }))
 
       setNotes(notesWithDefaults)

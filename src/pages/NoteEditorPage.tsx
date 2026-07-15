@@ -196,7 +196,14 @@ export default function NoteEditorPage() {
         return
       }
 
-      setNote(data)
+      // Handle missing columns gracefully
+      const noteWithDefaults = {
+        ...data,
+        starred: data.starred ?? false,
+        word_count: data.word_count ?? 0,
+      }
+
+      setNote(noteWithDefaults)
       setTitle(data.title)
       editor?.commands.setContent(data.content || '')
       setLastSaved(new Date(data.updated_at))
