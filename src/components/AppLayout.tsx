@@ -111,7 +111,7 @@ export function AppLayout({ children }: AppLayoutProps) {
       <button
         className="mobile-menu-toggle"
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        style={{ position: 'fixed', top: 'var(--space-4)', left: 'var(--space-4)', zIndex: 200 }}
+        style={{ position: 'fixed', top: 'var(--space-4)', right: 'var(--space-4)', zIndex: 200 }}
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           {mobileMenuOpen ? (
