@@ -58,7 +58,7 @@ export default function DashboardPage() {
         const [foldersRes, projectsRes, tagsRes] = await Promise.all([
           supabase.from('atlas_folders').select('*').eq('user_id', user.id).order('name'),
           supabase.from('atlas_projects').select('*').eq('user_id', user.id).order('name'),
-          supabase.from('tags').select('*').eq('user_id', user.id).order('name'),
+          supabase.from('atlas_tags').select('*').eq('user_id', user.id).order('name'),
         ])
 
         if (!foldersRes.error) setFolders(foldersRes.data || [])
@@ -148,6 +148,54 @@ export default function DashboardPage() {
     }
   }
 
+  const handleDeleteFolder = async (folderId: string) => {
+    if (!confirm('Delete this folder? Notes inside will not be deleted.')) return
+
+    try {
+      const { error } = await supabase.from('atlas_folders').delete().eq('id', folderId)
+      if (error) throw error
+
+      showToast('success', 'Folder deleted')
+      if (selectedFolder?.id === folderId) setSelectedFolder(null)
+      fetchData()
+    } catch (error) {
+      console.error('Error deleting folder:', error)
+      showToast('error', 'Failed to delete folder')
+    }
+  }
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (!confirm('Delete this project? Notes inside will not be deleted.')) return
+
+    try {
+      const { error } = await supabase.from('atlas_projects').delete().eq('id', projectId)
+      if (error) throw error
+
+      showToast('success', 'Project deleted')
+      if (selectedProject?.id === projectId) setSelectedProject(null)
+      fetchData()
+    } catch (error) {
+      console.error('Error deleting project:', error)
+      showToast('error', 'Failed to delete project')
+    }
+  }
+
+  const handleDeleteTag = async (tagId: string) => {
+    if (!confirm('Delete this tag?')) return
+
+    try {
+      const { error } = await supabase.from('atlas_tags').delete().eq('id', tagId)
+      if (error) throw error
+
+      showToast('success', 'Tag deleted')
+      if (selectedTag?.id === tagId) setSelectedTag(null)
+      fetchData()
+    } catch (error) {
+      console.error('Error deleting tag:', error)
+      showToast('error', 'Failed to delete tag')
+    }
+  }
+
   const handleToggleStarred = async (noteId: string, currentStarred: boolean) => {
     try {
       const { error } = await supabase
@@ -219,7 +267,7 @@ export default function DashboardPage() {
     if (!user || !newItemName.trim()) return
 
     try {
-      const { error } = await supabase.from('tags').insert({
+      const { error } = await supabase.from('atlas_tags').insert({
         user_id: user.id,
         name: newItemName.trim().toLowerCase(),
         color: newTagColor,
@@ -392,21 +440,34 @@ export default function DashboardPage() {
               </button>
             </div>
             {folders.map((folder) => (
-              <button
-                key={folder.id}
-                className={`nav-item ${selectedFolder?.id === folder.id ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedFolder(folder)
-                  setSelectedProject(null)
-                  setSelectedTag(null)
-                  setShowStarred(false)
-                }}
-              >
-                <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                </svg>
-                <span className="nav-item-text">{folder.name}</span>
-              </button>
+              <div key={folder.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                <button
+                  className={`nav-item ${selectedFolder?.id === folder.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedFolder(folder)
+                    setSelectedProject(null)
+                    setSelectedTag(null)
+                    setShowStarred(false)
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                  <span className="nav-item-text">{folder.name}</span>
+                </button>
+                <button
+                  className="btn btn-icon btn-ghost"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id) }}
+                  style={{ padding: '4px', opacity: 0.6 }}
+                  title="Delete folder"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
             ))}
             {folders.length === 0 && (
               <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', padding: '0 var(--space-3)' }}>No folders</p>
@@ -428,23 +489,36 @@ export default function DashboardPage() {
               </button>
             </div>
             {projects.map((project) => (
-              <button
-                key={project.id}
-                className={`nav-item ${selectedProject?.id === project.id ? 'active' : ''}`}
-                onClick={() => {
-                  setSelectedProject(project)
-                  setSelectedFolder(null)
-                  setSelectedTag(null)
-                  setShowStarred(false)
-                }}
-              >
-                <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polygon points="12 2 2 7 12 12 22 7 12 2" />
-                  <polyline points="2 17 12 22 22 17" />
-                  <polyline points="2 12 12 17 22 12" />
-                </svg>
-                <span className="nav-item-text">{project.name}</span>
-              </button>
+              <div key={project.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                <button
+                  className={`nav-item ${selectedProject?.id === project.id ? 'active' : ''}`}
+                  onClick={() => {
+                    setSelectedProject(project)
+                    setSelectedFolder(null)
+                    setSelectedTag(null)
+                    setShowStarred(false)
+                  }}
+                  style={{ flex: 1 }}
+                >
+                  <svg className="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polygon points="12 2 2 7 12 12 22 7 12 2" />
+                    <polyline points="2 17 12 22 22 17" />
+                    <polyline points="2 12 12 17 22 12" />
+                  </svg>
+                  <span className="nav-item-text">{project.name}</span>
+                </button>
+                <button
+                  className="btn btn-icon btn-ghost"
+                  onClick={(e) => { e.stopPropagation(); handleDeleteProject(project.id) }}
+                  style={{ padding: '4px', opacity: 0.6 }}
+                  title="Delete project"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                  </svg>
+                </button>
+              </div>
             ))}
             {projects.length === 0 && (
               <p style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', padding: '0 var(--space-3)' }}>No projects</p>
@@ -455,20 +529,32 @@ export default function DashboardPage() {
             <div className="sidebar-section">
               <div className="sidebar-section-title">Tags</div>
               {tags.map((tag) => (
-                <button
-                  key={tag.id}
-                  className={`nav-item ${selectedTag?.id === tag.id ? 'active' : ''}`}
-                  onClick={() => {
-                    setSelectedTag(tag)
-                    setSelectedFolder(null)
-                    setSelectedProject(null)
-                    setShowStarred(false)
-                  }}
-                  style={{ gap: 'var(--space-2)' }}
-                >
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: tag.color, flexShrink: 0 }} />
-                  <span className="nav-item-text">{tag.name}</span>
-                </button>
+                <div key={tag.id} style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+                  <button
+                    className={`nav-item ${selectedTag?.id === tag.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setSelectedTag(tag)
+                      setSelectedFolder(null)
+                      setSelectedProject(null)
+                      setShowStarred(false)
+                    }}
+                    style={{ flex: 1, gap: 'var(--space-2)' }}
+                  >
+                    <span style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: tag.color, flexShrink: 0 }} />
+                    <span className="nav-item-text">{tag.name}</span>
+                  </button>
+                  <button
+                    className="btn btn-icon btn-ghost"
+                    onClick={(e) => { e.stopPropagation(); handleDeleteTag(tag.id) }}
+                    style={{ padding: '4px', opacity: 0.6 }}
+                    title="Delete tag"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                </div>
               ))}
             </div>
           )}
