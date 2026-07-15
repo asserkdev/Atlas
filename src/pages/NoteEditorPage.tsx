@@ -153,7 +153,7 @@ export default function NoteEditorPage() {
       const wordCount = textContent.trim() ? textContent.trim().split(/\s+/).length : 0
       
       const { error } = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .update({
           title: title || 'Untitled Note',
           content: content || editor?.getHTML() || '',
@@ -184,7 +184,7 @@ export default function NoteEditorPage() {
 
     try {
       const { data, error } = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .select('*')
         .eq('id', id)
         .eq('user_id', user.id)
@@ -221,8 +221,8 @@ export default function NoteEditorPage() {
 
     try {
       const [foldersRes, projectsRes] = await Promise.all([
-        supabase.from('folders').select('*').eq('user_id', user.id).order('name'),
-        supabase.from('projects').select('*').eq('user_id', user.id).order('name'),
+        supabase.from('atlas_folders').select('*').eq('user_id', user.id).order('name'),
+        supabase.from('atlas_projects').select('*').eq('user_id', user.id).order('name'),
       ])
 
       setFolders(foldersRes.data || [])
@@ -256,7 +256,7 @@ export default function NoteEditorPage() {
 
     try {
       const { error } = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .update({
           folder_id: folderId,
           project_id: projectId,
@@ -279,7 +279,7 @@ export default function NoteEditorPage() {
     if (!note || !confirm('Delete this note?')) return
 
     try {
-      const { error } = await supabase.from('notes').delete().eq('id', note.id)
+      const { error } = await supabase.from('atlas_notes').delete().eq('id', note.id)
       if (error) throw error
 
       showToast('success', 'Note deleted')
@@ -308,7 +308,7 @@ export default function NoteEditorPage() {
 
     try {
       const { data, error } = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .insert({
           user_id: user.id,
           title: template.id === 'blank' ? 'Untitled Note' : template.name,
@@ -378,7 +378,7 @@ export default function NoteEditorPage() {
 
     try {
       const { error } = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .update({ starred: !note.starred })
         .eq('id', note.id)
 

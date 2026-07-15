@@ -37,7 +37,7 @@ export default function DashboardPage() {
 
     try {
       const notesRes = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .select('*')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false })
@@ -56,8 +56,8 @@ export default function DashboardPage() {
 
       try {
         const [foldersRes, projectsRes, tagsRes] = await Promise.all([
-          supabase.from('folders').select('*').eq('user_id', user.id).order('name'),
-          supabase.from('projects').select('*').eq('user_id', user.id).order('name'),
+          supabase.from('atlas_folders').select('*').eq('user_id', user.id).order('name'),
+          supabase.from('atlas_projects').select('*').eq('user_id', user.id).order('name'),
           supabase.from('tags').select('*').eq('user_id', user.id).order('name'),
         ])
 
@@ -85,7 +85,7 @@ export default function DashboardPage() {
     if (!user) return
 
     try {
-      const { error } = await supabase.from('notes').insert({
+      const { error } = await supabase.from('atlas_notes').insert({
         user_id: user.id,
         title: 'Welcome to Atlas',
         content: `<h1>Welcome to Atlas! 🚀</h1>
@@ -115,7 +115,7 @@ export default function DashboardPage() {
     if (!user) return
 
     try {
-      const { data, error } = await supabase.from('notes').insert({
+      const { data, error } = await supabase.from('atlas_notes').insert({
         user_id: user.id,
         title: 'Untitled Note',
         content: '',
@@ -137,7 +137,7 @@ export default function DashboardPage() {
     if (!confirm('Delete this note?')) return
 
     try {
-      const { error } = await supabase.from('notes').delete().eq('id', noteId)
+      const { error } = await supabase.from('atlas_notes').delete().eq('id', noteId)
       if (error) throw error
 
       showToast('success', 'Note deleted')
@@ -151,7 +151,7 @@ export default function DashboardPage() {
   const handleToggleStarred = async (noteId: string, currentStarred: boolean) => {
     try {
       const { error } = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .update({ starred: !currentStarred })
         .eq('id', noteId)
 
@@ -173,7 +173,7 @@ export default function DashboardPage() {
     if (!user || !newItemName.trim()) return
 
     try {
-      const { error } = await supabase.from('folders').insert({
+      const { error } = await supabase.from('atlas_folders').insert({
         user_id: user.id,
         name: newItemName.trim(),
       })
@@ -195,7 +195,7 @@ export default function DashboardPage() {
     if (!user || !newItemName.trim()) return
 
     try {
-      const { error } = await supabase.from('projects').insert({
+      const { error } = await supabase.from('atlas_projects').insert({
         user_id: user.id,
         name: newItemName.trim(),
         description: newItemDescription.trim() || null,

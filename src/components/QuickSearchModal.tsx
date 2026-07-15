@@ -27,7 +27,7 @@ export function QuickSearchModal({ isOpen, onClose }: QuickSearchModalProps) {
     setLoading(true)
     try {
       const { data, error } = await supabase
-        .from('notes')
+        .from('atlas_notes')
         .select('*')
         .eq('user_id', user.id)
         .or(`title.ilike.%${searchQuery}%,content.ilike.%${searchQuery}%`)

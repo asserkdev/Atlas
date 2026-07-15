@@ -25,7 +25,7 @@ export default function BookmarksPage() {
 
     try {
       const { data, error } = await supabase
-        .from('bookmarks')
+        .from('atlas_bookmarks')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
@@ -76,7 +76,7 @@ export default function BookmarksPage() {
       const hostname = new URL(url).hostname
       const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`
 
-      const { error } = await supabase.from('bookmarks').insert({
+      const { error } = await supabase.from('atlas_bookmarks').insert({
         user_id: user.id,
         url,
         title: title || hostname,
@@ -110,7 +110,7 @@ export default function BookmarksPage() {
       const favicon = `https://www.google.com/s2/favicons?domain=${hostname}&sz=32`
 
       const { error } = await supabase
-        .from('bookmarks')
+        .from('atlas_bookmarks')
         .update({
           url,
           title: newBookmark.title.trim() || hostname,
@@ -134,7 +134,7 @@ export default function BookmarksPage() {
   const handleToggleArchive = async (bookmark: Bookmark) => {
     try {
       const { error } = await supabase
-        .from('bookmarks')
+        .from('atlas_bookmarks')
         .update({ archived: !bookmark.archived })
         .eq('id', bookmark.id)
 
@@ -155,7 +155,7 @@ export default function BookmarksPage() {
     if (!confirm('Delete this bookmark?')) return
 
     try {
-      const { error } = await supabase.from('bookmarks').delete().eq('id', bookmarkId)
+      const { error } = await supabase.from('atlas_bookmarks').delete().eq('id', bookmarkId)
       if (error) throw error
 
       showToast('success', 'Bookmark deleted')

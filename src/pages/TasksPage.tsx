@@ -29,7 +29,7 @@ export default function TasksPage() {
 
     try {
       const { data, error } = await supabase
-        .from('tasks')
+        .from('atlas_tasks')
         .select('*')
         .eq('user_id', user.id)
         .order('due_date', { nullsFirst: false })
@@ -70,7 +70,7 @@ export default function TasksPage() {
     if (!user || !newTask.title.trim()) return
 
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const { error } = await supabase.from('atlas_tasks').insert({
         user_id: user.id,
         title: newTask.title.trim(),
         description: newTask.description.trim() || null,
@@ -96,7 +96,7 @@ export default function TasksPage() {
 
     try {
       const { error } = await supabase
-        .from('tasks')
+        .from('atlas_tasks')
         .update({
           title: newTask.title.trim(),
           description: newTask.description.trim() || null,
@@ -120,7 +120,7 @@ export default function TasksPage() {
   const handleToggleComplete = async (task: Task) => {
     try {
       const { error } = await supabase
-        .from('tasks')
+        .from('atlas_tasks')
         .update({
           completed: !task.completed,
           completed_at: !task.completed ? new Date().toISOString() : null,
@@ -144,7 +144,7 @@ export default function TasksPage() {
     if (!confirm('Delete this task?')) return
 
     try {
-      const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+      const { error } = await supabase.from('atlas_tasks').delete().eq('id', taskId)
       if (error) throw error
 
       showToast('success', 'Task deleted')
